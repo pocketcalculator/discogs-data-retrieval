@@ -20,6 +20,15 @@ mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTop
 
 app.use(express.json());
 
+app.get('/', async (req, res) => {
+    try {
+        const tracks = await Track.find();
+        res.json(tracks);
+    } catch (error) {
+        res.status(500).json({ error: 'An error occurred while retrieving tracks' });
+    }
+});
+
 app.post('/track-info', async (req, res) => {
     const { artist, title } = req.body;
 
