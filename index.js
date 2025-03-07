@@ -1,8 +1,22 @@
 const express = require('express');
 const axios = require('axios');
+const mongoose = require('mongoose');
 require('dotenv').config();
+const Track = require('./models/track');
 const app = express();
 const port = 9090;
+
+if (!process.env.DISCOGS_API_TOKEN) {
+    console.error('Error: DISCOGS_API_TOKEN is not set in the environment variables.');
+    process.exit(1);
+}
+
+mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+    .then(() => console.log('Connected to MongoDB'))
+    .catch(err => {
+        console.error('Error connecting to MongoDB:', err);
+        process.exit(1);
+    });
 
 app.use(express.json());
 
@@ -30,7 +44,30 @@ app.post('/track-info', async (req, res) => {
 
         res.json(trackInfo);
     } catch (error) {
-        res.status(500).json({ error: 'An error occurred while fetching data from Discogs API' });
+        if (error.response) {
+            res.status(error.response.status).json({ error: error.response.data.message });
+        } else if (error.request) {
+            res.status(500).json({ error: 'No response received from Discogs API' });
+        } else {
+            res.status(500).json({ error: 'An error occurred while fetching data from Discogs API' });
+        }
+    }
+});
+
+app.post('/save-track', async (req, res) => {
+    const { artist, title, year, genre, image, video } = req.body;
+
+    if (!artist || !title) {
+        return res.status(400).json({ error: 'Artist and title are required' });
+    }
+
+    const track = new Track({ artist, title, year, genre, image, video });
+
+    try {
+        await track.save();
+        res.status(201).json({ message: 'Track saved successfully' });
+    } catch (error) {
+        res.status(500).json({ error: 'An error occurred while saving the track' });
     }
 });
 
